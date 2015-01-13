@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+	<style>
+		body{
+			margin: 0;
+		}
+	</style>
+	</head>
+<body>
+	<canvas id="print"></canvas>
+</body>
+
+<script>
+	(function(){
+		var canvas = document.getElementById('print');
+		var context = canvas.getContext("2d");
+
+		var windowWidth = window.innerWidth,
+			windowHeight = window.innerHeight;
+
+		var frameInterval; // RequestWindowFrame对象
+
+		// 初始化画板
+		context.canvas.width = windowWidth;
+		context.canvas.height = windowHeight;
+
+		// 角度转弧度
+		function rads(x) {
+			return Math.PI * x / 180;
+		}
+
+		// 圆点构造函数
+		function Point(x, y, r, vx, vy, color){
+			this.x = x;
+			this.y = y;
+			this.r = r;
+			this.color = color;
+		}
+
+		Point.prototype.draw = function(context, x, y, r, color){
+			x = x || this.x;
+			y = y || this.y;
+			r = r || this.r;
+			context.beginPath();
+			context.arc(x, y, r, 0, rads(360), false);
+			context.fillStyle = color || this.color || "#000";
+			context.fill();
+			context.lineWidth = 0.5;
+
+			return this;
+		};
+
+		// 画出2个点
+		var point1 = new Point(50, 220, 10, 'red').draw(context);
+		var point2 = new Point(100, 120, 10).draw(context);
+
+
+		// 计算2点之间的向量， 然后移动
+		function move(context, point, point2){
+			var startX = point.x;
+			var startY = point.y;
+			var endX = point2.x;
+			var endY = point2.y;
+			var speedX = (endX - startX) / 100;
+			var speedY = (endY - startY) / 100;
+			var flag = startX > endX;
+
+			function frame(x, y){
+				// 采用判断向量方向的形式判断是否合并
+				if( x > endX - speedX == flag){
+					context.clearRect(0, 0, windowWidth, windowHeight);
+					point1.draw(context, x + speedX, y + speedY);
+					point2.draw(context, point2.x, point2.y);
+					point1.x = x;
+					point1.y = y;
+					window.requestAnimationFrame(frame.bind(window, x + speedX, y + speedY));
+				}
+			}
+
+			window.requestAnimationFrame(frame.bind(window, startX, startY));
+		}
+
+		canvas.addEventListener('mousedown', function(e){
+			window.cancelAnimationFrame(frameInterval);
+
+			var bounding = canvas.getBoundingClientRect();
+
+			// 计算鼠标坐标在canvas中的位置
+			var x = (e.clientX - bounding.left) * (canvas.width / bounding.width);
+			var y = (e.clientY - bounding.top) * (canvas.height / bounding.height);
+
+			point2.x = x;
+			point2.y = y;
+
+			move(context, point1, point2 );
+		});
+
+		move(context, point1, point2);
+
+	})();
+</script>
+
+</html>
