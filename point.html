@@ -16,8 +16,9 @@
 <script>
 	(function(){
 		var canvas = document.getElementById('print');
-		var context = canvas.getContext("2d");
+		var context = canvas.getContext("2d"); // 构建上下文
 
+		// 获取屏幕宽高
 		var windowWidth = window.innerWidth,
 			windowHeight = window.innerHeight;
 
@@ -34,12 +35,21 @@
 
 		// 圆点构造函数
 		function Point(x, y, r, vx, vy, color){
-			this.x = x;
-			this.y = y;
-			this.r = r;
-			this.color = color;
+			this.x = x; // x 坐标
+			this.y = y; // y 坐标
+			this.r = r; // 半径
+			this.color = color; // 填充颜色
 		}
 
+		/**
+		 * 绘制方法
+		 * @param context canvas 上下文
+		 * @param x  x 坐标
+		 * @param y  y 坐标
+		 * @param r  半径
+		 * @param color  填充颜色
+		 * @returns {Point}
+		 */
 		Point.prototype.draw = function(context, x, y, r, color){
 			x = x || this.x;
 			y = y || this.y;
@@ -49,52 +59,58 @@
 			context.fillStyle = color || this.color || "#000";
 			context.fill();
 			context.lineWidth = 0.5;
-
 			return this;
 		};
 
-		// 画出2个点
-		var point1 = new Point(50, 220, 10, 'red').draw(context);
-		var point2 = new Point(100, 120, 10).draw(context);
 
-
-		// 计算2点之间的向量， 然后移动
+		// 计算2圆点对象之间的向量， 然后移动
 		function move(context, point, point2){
-			var startX = point.x;
-			var startY = point.y;
-			var endX = point2.x;
-			var endY = point2.y;
-			var speedX = (endX - startX) / 100;
-			var speedY = (endY - startY) / 100;
-			var flag = startX > endX;
+			var startX = point.x; // 起点x坐标
+			var startY = point.y; // 起点y坐标
+			var endX = point2.x;  // 终点x坐标
+			var endY = point2.y;  // 终点y坐标
 
+			var flag = startX > endX; // 判断起点与终点之间向量的方向
+
+			// 构建每一帧的动作
 			function frame(x, y){
+				// 在每一帧重新计算速度, 10 为速度分量， 越小， 速度越快
+				var speedX = (endX - x) / 10;
+				var speedY = (endY - y) / 10;
+
 				// 采用判断向量方向的形式判断是否合并
 				if( x > endX - speedX == flag){
-					context.clearRect(0, 0, windowWidth, windowHeight);
-					point1.draw(context, x + speedX, y + speedY);
-					point2.draw(context, point2.x, point2.y);
-					point1.x = x;
-					point1.y = y;
-					window.requestAnimationFrame(frame.bind(window, x + speedX, y + speedY));
+					context.clearRect(0, 0, windowWidth, windowHeight); // 清空画布
+					point1.draw(context, x + speedX, y + speedY); // 绘制圆点1
+					point2.draw(context, point2.x, point2.y);  // 绘制圆点2
+					point1.x = x; // 缓存x坐标
+					point1.y = y; // 缓存y坐标
+					window.requestAnimationFrame(frame.bind(window, x + speedX, y + speedY)); // 递归到下一个动画
 				}
 			}
 
 			window.requestAnimationFrame(frame.bind(window, startX, startY));
 		}
 
+
+		// 画出2个点
+		var point1 = new Point(50, 220, 10, 'red').draw(context);
+		var point2 = new Point(100, 120, 10).draw(context);
+
 		canvas.addEventListener('mousedown', function(e){
-			window.cancelAnimationFrame(frameInterval);
+			window.cancelAnimationFrame(frameInterval); // 停止动画
 
-			var bounding = canvas.getBoundingClientRect();
+			var bounding = canvas.getBoundingClientRect(); // 获取canvas元素的位置对象
 
-			// 计算鼠标坐标在canvas中的位置
+			// 计算鼠标坐标在canvas中的位置, 讲鼠标相对canvas的坐标乘以画布上下文的宽度和HTML中canvas元素的宽度的比例
 			var x = (e.clientX - bounding.left) * (canvas.width / bounding.width);
 			var y = (e.clientY - bounding.top) * (canvas.height / bounding.height);
 
+			// 将坐标缓存到终点中
 			point2.x = x;
 			point2.y = y;
 
+			// 重新定位
 			move(context, point1, point2 );
 		});
 
