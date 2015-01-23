@@ -122,18 +122,20 @@
 			function frame(x, y){
 				// 在每一帧重新计算速度, 10 为速度分量， 越小， 速度越快
 				var speedX, speedY, vx, vy;
-				vx = endX - x;
-				vy = endY - y;
-				var length = Math.sqrt(vx * vx + vy * vy);
+				vx = endX - x; // 计算x方向的分量
+				vy = endY - y; // 计算y方向的分量
+				var length = Math.sqrt(vx * vx + vy * vy); // 向量长度
 				speedX = (endX - x) * 2 / length ;
 				speedY = (endY - y) * 2 / length ;
-				if(!hit_fuc(point)){
+				// 判断是否撞到边
+				if(!hit_fuc(point)){ // 没撞到
 					point.vx = endX - x;
 					point.vy = endY - y;
-					if(Math.abs(x-endX) < 1 ||  Math.abs(y-endY) < 1){
+					if(Math.abs(x-endX) < 1 ||  Math.abs(y-endY) < 1){ // 如果到达目标位置， 于是停止
 						window.cancelAnimationFrame(frameInterval);
 					}
 					else{
+						// 清除画布， 重新绘制下一帧
 						context.clearRect(0, 0, windowWidth, windowHeight);
 						createBox(context, 10, 10 , 400, 400);
 						point.draw(context, x + speedX, y + speedY);
@@ -143,27 +145,45 @@
 					}
 				}
 				else{ // 发生了碰撞
-					// 找到最近的一条边, 最简单的方式， 计算垂线最小值→_→
+					// 先进行后移， 防止碰撞检测干扰
 					context.clearRect(0, 0, windowWidth, windowHeight);
 					createBox(context, 10, 10, 400, 400);
 					point.draw(context, x - speedX, y - speedY);
 					point.x = x - speedX;
 					point.y = y - speedY;
 					var barrier = findClosest(point, position);
-//					console.log(barrier);
 					window.cancelAnimationFrame(frameInterval);
+					// 计算碰撞之后的向量
 					var target = rebound(barrier, point);
+					// 计算重点位置
 					endX = target.vx + point.x;
 					endY = target.vy + point.y;
-//					console.log(endX, endY);
+					// 重新进行移动
 					move(context, point, endX, endY);
-
 				}
 			}
 			window.requestAnimationFrame(frame.bind(window, startX, startY));
 		}
 
-		// 创建容器
+		/**
+		 * 创建框框
+		 * @param context
+		 * @param x
+		 * @param y
+		 * @param width
+		 * @param height
+		 * @returns {{A: *[], B: *[], C: *[], D: *[]}}
+		 * A -------------- B
+		 * |				|
+		 * |				|
+		 * |				|
+		 * |	 		    |
+		 * |				|
+		 * |			。	|
+		 * |				|
+		 * D -------------- C
+		 * 返回ABCD 4个点的坐标
+		 */
 		function createBox(context, x, y, width, height){
 			context.beginPath();
 			context.moveTo(x, y);
@@ -180,14 +200,29 @@
 			}
 		}
 
-		// 找到最近的一条边
+		/**
+		 * 找到最近的一条边
+		 * @param point
+		 * @param position
+		 * @returns {{vx: number, vy: number}}
+		 * A -------------- B
+		 * |				|
+		 * |				|
+		 * |				|
+		 * |	 		    |
+		 * |				|
+		 * |				|
+		 * |			。	|
+		 * D -------------- C
+		 *
+		 * 最近的为CD边, 返回CD边的向量
+		 */
 		function findClosest(point, position){
 			var seam_str = "AB BC CD AD".split(' ');
 			var perpendicular = [point.y - position['A'][1]];
 			perpendicular.push(position['B'][0] - point.x);
 			perpendicular.push(position['C'][1] - point.y);
 			perpendicular.push(point.x - position['D'][0]);
-
 
 			var min = perpendicular[0],
 				index = 0;
@@ -206,7 +241,13 @@
 			}
 		}
 
-		// 简单碰撞检测
+		/**
+		 * 简单碰撞检测
+		 * @param position
+		 * @param point
+		 * @returns {Function}
+		 * 通过判断圆与4条边之间的距离进行判断
+		 */
 		function isHit(position, point){
 			var safeArea = {};
 			var distance = point.r;
@@ -239,15 +280,9 @@
 
 		}
 
-
 		var position = createBox(context, 10, 10,  400, 400);
 		var point = new Point(300, 300, 10).draw(context);
 		move(context, point, -800, 800);
-
-		var start = {vx : 100, vy : 100}
-
-
-
 	})();
 </script>
 
