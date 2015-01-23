@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+	<style>
+		body{
+			margin: 0;
+		}
+	</style>
+</head>
+<body>
+<canvas id="print"></canvas>
+</body>
+
+<script>
+	(function(){
+		var canvas = document.getElementById('print');
+		var context = canvas.getContext("2d"); // 构建上下文
+
+		// 获取屏幕宽高
+		var windowWidth = window.innerWidth,
+				windowHeight = window.innerHeight;
+
+		var frameInterval; // RequestWindowFrame对象
+
+		// 初始化画板
+		context.canvas.width = windowWidth;
+		context.canvas.height = windowHeight;
+
+
+		// 角度转弧度
+		function rads(x) {
+			return Math.PI * x / 180;
+		}
+
+		// 计算向量的模长
+		function magnitudes(vector){
+			return Math.sqrt(vector.vx * vector.vx + vector.vy * vector.vy);
+		}
+
+		// 计算向量的加法
+		function addition(vector1, vector2){
+			return {
+				vx : vector1.vx + vector2.vx,
+				vy : vector2.vy + vector2.vy
+			}
+		}
+
+		// 计算向量的减法
+
+		function subtraction(vector1, vector2){
+			return {
+				vx : vector1.vx - vector2.vx,
+				vy : vector1.vy - vector2.vy
+			}
+		}
+
+		// 计算向量的点积
+
+		function dot_product(vector1, vector2){
+			return vector1.vx * vector2.vx + vector1.vy * vector2.vy;
+		}
+
+
+		// 向量的倍数
+		function multiple_vector(vector, multiple){
+			return {
+				vx : vector.vx * multiple,
+				vy : vector.vy * multiple
+			}
+		}
+
+		// 计算一个向量的单位向量
+		function vector_units(vector){
+			var v_m = magnitudes(vector);
+			return {
+				vx : vector.vx / v_m,
+				vy : vector.vy / v_m
+			};
+		}
+
+		// 圆点构造函数
+		function Point(x, y, r, vx, vy, color){
+			this.x = x; // x 坐标
+			this.y = y; // y 坐标
+			this.r = r; // 半径
+			this.vx = 0;
+			this.vy = 0;
+			this.color = color; // 填充颜色
+		}
+
+		/**
+		 * 绘制方法
+		 * @param context canvas 上下文
+		 * @param x  x 坐标
+		 * @param y  y 坐标
+		 * @param r  半径
+		 * @param color  填充颜色
+		 * @returns {Point}
+		 */
+		Point.prototype.draw = function(context, x, y, r, color){
+			x = x || this.x;
+			y = y || this.y;
+			r = r || this.r;
+			context.beginPath();
+			context.arc(x, y, r, 0, rads(360), false);
+			context.fillStyle = color || this.color || "#000";
+			context.fill();
+			context.lineWidth = 0.5;
+			return this;
+		};
+
+
+		// 计算2圆点对象之间的向量， 然后移动
+		function move(context, point, endX, endY){
+			var startX = point.x; // 起点x坐标
+			var startY = point.y; // 起点y坐标
+			var hit_fuc = isHit(position, point);
+
+			// 构建每一帧的动作
+			function frame(x, y){
+				// 在每一帧重新计算速度, 10 为速度分量， 越小， 速度越快
+				var speedX, speedY, vx, vy;
+				vx = endX - x;
+				vy = endY - y;
+				var length = Math.sqrt(vx * vx + vy * vy);
+				speedX = (endX - x) * 2 / length ;
+				speedY = (endY - y) * 2 / length ;
+				if(!hit_fuc(point)){
+					point.vx = endX - x;
+					point.vy = endY - y;
+					if(Math.abs(x-endX) < 1 ||  Math.abs(y-endY) < 1){
+						window.cancelAnimationFrame(frameInterval);
+					}
+					else{
+						context.clearRect(0, 0, windowWidth, windowHeight);
+						createBox(context, 10, 10 , 400, 400);
+						point.draw(context, x + speedX, y + speedY);
+						point.x = x + speedX;
+						point.y = y + speedY;
+						frameInterval = window.requestAnimationFrame(frame.bind(window, x + speedX, y + speedY));
+					}
+				}
+				else{ // 发生了碰撞
+					// 找到最近的一条边, 最简单的方式， 计算垂线最小值→_→
+					context.clearRect(0, 0, windowWidth, windowHeight);
+					createBox(context, 10, 10, 400, 400);
+					point.draw(context, x - speedX, y - speedY);
+					point.x = x - speedX;
+					point.y = y - speedY;
+					var barrier = findClosest(point, position);
+//					console.log(barrier);
+					window.cancelAnimationFrame(frameInterval);
+					var target = rebound(barrier, point);
+					endX = target.vx + point.x;
+					endY = target.vy + point.y;
+//					console.log(endX, endY);
+					move(context, point, endX, endY);
+
+				}
+			}
+			window.requestAnimationFrame(frame.bind(window, startX, startY));
+		}
+
+		// 创建容器
+		function createBox(context, x, y, width, height){
+			context.beginPath();
+			context.moveTo(x, y);
+			context.lineTo(x + width, y);
+			context.lineTo(x + width,  y + height);
+			context.lineTo(x, y + height);
+			context.lineTo(x, y);
+			context.stroke();
+			return {
+				A  : [x, y],
+				B  : [x + width, y],
+				C  : [x + width, y + height],
+				D  : [x, y + height]
+			}
+		}
+
+		// 找到最近的一条边
+		function findClosest(point, position){
+			var seam_str = "AB BC CD AD".split(' ');
+			var perpendicular = [point.y - position['A'][1]];
+			perpendicular.push(position['B'][0] - point.x);
+			perpendicular.push(position['C'][1] - point.y);
+			perpendicular.push(point.x - position['D'][0]);
+
+
+			var min = perpendicular[0],
+				index = 0;
+			for(var i = 0; i < 4; i ++){
+				if(min > perpendicular[i]){
+					min =  perpendicular[i];
+					index = i;
+				}
+			}
+
+			var vector_arr = seam_str[index].split("");
+
+			return {
+				vx : position[vector_arr[1]][0] - position[vector_arr[0]][0],
+				vy : position[vector_arr[1]][1] - position[vector_arr[0]][1]
+			}
+		}
+
+		// 简单碰撞检测
+		function isHit(position, point){
+			var safeArea = {};
+			var distance = point.r;
+			safeArea['a'] = [position['A'][0] + distance, position['A'][1] +  distance];
+			safeArea['b'] = [position['B'][0] - distance, position['B'][1] + distance];
+			safeArea['c'] = [position['C'][0] - distance, position['C'][1] - distance];
+			safeArea['d'] = [position['D'][0] + distance, position['D'][1] - distance];
+
+			return function(point){
+				var x = point.x;
+				var y = point.y;
+
+				if(safeArea['a'][0] < x  &&  x < safeArea['b'][0] && safeArea['a'][1] < y && y < safeArea['d'][1]){
+					return false;
+				}
+				return true;
+			};
+		}
+
+		// 平面弹性碰撞
+		function rebound(barrier, point){
+
+			var barrier_unites = vector_units(barrier);
+
+			// middle_vector = (point . barrier_unites) . barrier_unites
+			var middle_vector =  multiple_vector(barrier_unites, dot_product(point, barrier_unites));
+
+			// target = 2middle_vector - point
+			return subtraction(addition(middle_vector, middle_vector), point);
+
+		}
+
+
+		var position = createBox(context, 10, 10,  400, 400);
+		var point = new Point(300, 300, 10).draw(context);
+		move(context, point, -800, 800);
+
+		var start = {vx : 100, vy : 100}
+
+
+
+	})();
+</script>
+
+</html>
